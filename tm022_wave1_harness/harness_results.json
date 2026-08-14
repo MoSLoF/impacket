@@ -1,0 +1,249 @@
+{
+  "baseline": {
+    "label": "baseline",
+    "results": [
+      {
+        "id": "EC-01a",
+        "name": "3-part SPN direct lookup (anySPN fallback)",
+        "search": "LDAP/us-dc.us.techcorp.local:389@US.TECHCORP.LOCAL",
+        "cache": [
+          "LDAP/us-dc.us.techcorp.local/us.techcorp.local@US.TECHCORP.LOCAL",
+          "cifs/fs.lab.local@LAB.LOCAL"
+        ],
+        "note": "3-part cached SPN must be matchable on host+realm.",
+        "result": null,
+        "exc_type": "IndexError",
+        "exc_msg": "list index out of range",
+        "exc_tb": [
+          "    cachedSPN = (c['server'].prettyPrint().upper().split(b'/')[1].split(b'@')[0].split(b':')[0] + b'@' + c['server'].prettyPrint().upper().split(b'/')[1].split(b'@')[1])",
+          "                                                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^",
+          "IndexError: list index out of range"
+        ],
+        "outcome": "crash"
+      },
+      {
+        "id": "EC-01b",
+        "name": "Poisoning: unrelated lookup crashes on a 3-part cred",
+        "search": "krbtgt/US.TECHCORP.LOCAL@US.TECHCORP.LOCAL",
+        "cache": [
+          "LDAP/us-dc.us.techcorp.local/us.techcorp.local@US.TECHCORP.LOCAL",
+          "cifs/fs.lab.local@LAB.LOCAL"
+        ],
+        "note": "One 3-part cred must not crash lookups for other SPNs.",
+        "result": null,
+        "exc_type": "IndexError",
+        "exc_msg": "list index out of range",
+        "exc_tb": [
+          "    cachedSPN = (c['server'].prettyPrint().upper().split(b'/')[1].split(b'@')[0].split(b':')[0] + b'@' + c['server'].prettyPrint().upper().split(b'/')[1].split(b'@')[1])",
+          "                                                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^",
+          "IndexError: list index out of range"
+        ],
+        "outcome": "crash"
+      },
+      {
+        "id": "EC-02",
+        "name": "Cross-realm referral TGT (2-part, 2nd comp is realm)",
+        "search": "krbtgt/child.realm:88@parent.realm",
+        "cache": [
+          "krbtgt/CHILD.REALM@PARENT.REALM"
+        ],
+        "note": "A 2-part krbtgt whose 2nd component is a realm must match.",
+        "result": "krbtgt/CHILD.REALM@PARENT.REALM",
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "correct"
+      },
+      {
+        "id": "EC-03a",
+        "name": "S4U2Self ST \u2014 machine account (hostname$@REALM)",
+        "search": "cifs/us-dc.us.techcorp.local@US.TECHCORP.LOCAL",
+        "cache": [
+          "US-DC$@US.TECHCORP.LOCAL"
+        ],
+        "note": "Machine-account ST (no slash) should match its SPN lookup.",
+        "result": "US-DC$@US.TECHCORP.LOCAL",
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "correct"
+      },
+      {
+        "id": "EC-03b",
+        "name": "S4U2Self ST \u2014 user account (no '$')",
+        "search": "cifs/john.doe@US.TECHCORP.LOCAL",
+        "cache": [
+          "john.doe@US.TECHCORP.LOCAL"
+        ],
+        "note": "User-principal ST cannot be represented by the '$'-appending no-slash branch \u2014 expected silent miss (returns None).",
+        "result": null,
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "silent-wrong-result"
+      },
+      {
+        "id": "EC-05a",
+        "name": "2-part SPN with port",
+        "search": "HTTP/web.lab.local@LAB.LOCAL",
+        "cache": [
+          "HTTP/web.lab.local:8443@LAB.LOCAL"
+        ],
+        "note": "Port in the 2nd component must be stripped for comparison.",
+        "result": "HTTP/web.lab.local:8443@LAB.LOCAL",
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "correct"
+      },
+      {
+        "id": "EC-05b",
+        "name": "3-part SPN with port in host component",
+        "search": "LDAP/dc.lab.local@LAB.LOCAL",
+        "cache": [
+          "LDAP/dc.lab.local:3268/lab.local@LAB.LOCAL"
+        ],
+        "note": "Port + 3-part combination \u2014 the hardest shape for the 3-part branch. Baseline IndexErrors before the port is even considered.",
+        "result": null,
+        "exc_type": "IndexError",
+        "exc_msg": "list index out of range",
+        "exc_tb": [
+          "    cachedSPN = (c['server'].prettyPrint().upper().split(b'/')[1].split(b'@')[0].split(b':')[0] + b'@' + c['server'].prettyPrint().upper().split(b'/')[1].split(b'@')[1])",
+          "                                                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^",
+          "IndexError: list index out of range"
+        ],
+        "outcome": "crash"
+      },
+      {
+        "id": "EC-R",
+        "name": "No-slash search term against a slash-bearing cache",
+        "search": "US-DC$@US.TECHCORP.LOCAL",
+        "cache": [
+          "cifs/fs.lab.local@LAB.LOCAL"
+        ],
+        "note": "Search-side mirror of the EC-01 assumption: the anySPN loop indexes server.split('/')[1] with no guard that the SEARCH term contains a slash.",
+        "result": null,
+        "exc_type": "IndexError",
+        "exc_msg": "list index out of range",
+        "exc_tb": [
+          "    searchSPN = '%s@%s' % (server.upper().split('/')[1].split('@')[0].split(':')[0],",
+          "                           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^",
+          "IndexError: list index out of range"
+        ],
+        "outcome": "crash"
+      }
+    ]
+  },
+  "patched": {
+    "label": "patched",
+    "results": [
+      {
+        "id": "EC-01a",
+        "name": "3-part SPN direct lookup (anySPN fallback)",
+        "search": "LDAP/us-dc.us.techcorp.local:389@US.TECHCORP.LOCAL",
+        "cache": [
+          "LDAP/us-dc.us.techcorp.local/us.techcorp.local@US.TECHCORP.LOCAL",
+          "cifs/fs.lab.local@LAB.LOCAL"
+        ],
+        "note": "3-part cached SPN must be matchable on host+realm.",
+        "result": "LDAP/us-dc.us.techcorp.local/us.techcorp.local@US.TECHCORP.LOCAL",
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "correct"
+      },
+      {
+        "id": "EC-01b",
+        "name": "Poisoning: unrelated lookup crashes on a 3-part cred",
+        "search": "krbtgt/US.TECHCORP.LOCAL@US.TECHCORP.LOCAL",
+        "cache": [
+          "LDAP/us-dc.us.techcorp.local/us.techcorp.local@US.TECHCORP.LOCAL",
+          "cifs/fs.lab.local@LAB.LOCAL"
+        ],
+        "note": "One 3-part cred must not crash lookups for other SPNs.",
+        "result": null,
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "correct"
+      },
+      {
+        "id": "EC-02",
+        "name": "Cross-realm referral TGT (2-part, 2nd comp is realm)",
+        "search": "krbtgt/child.realm:88@parent.realm",
+        "cache": [
+          "krbtgt/CHILD.REALM@PARENT.REALM"
+        ],
+        "note": "A 2-part krbtgt whose 2nd component is a realm must match.",
+        "result": "krbtgt/CHILD.REALM@PARENT.REALM",
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "correct"
+      },
+      {
+        "id": "EC-03a",
+        "name": "S4U2Self ST \u2014 machine account (hostname$@REALM)",
+        "search": "cifs/us-dc.us.techcorp.local@US.TECHCORP.LOCAL",
+        "cache": [
+          "US-DC$@US.TECHCORP.LOCAL"
+        ],
+        "note": "Machine-account ST (no slash) should match its SPN lookup.",
+        "result": "US-DC$@US.TECHCORP.LOCAL",
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "correct"
+      },
+      {
+        "id": "EC-03b",
+        "name": "S4U2Self ST \u2014 user account (no '$')",
+        "search": "cifs/john.doe@US.TECHCORP.LOCAL",
+        "cache": [
+          "john.doe@US.TECHCORP.LOCAL"
+        ],
+        "note": "User-principal ST cannot be represented by the '$'-appending no-slash branch \u2014 expected silent miss (returns None).",
+        "result": null,
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "silent-wrong-result"
+      },
+      {
+        "id": "EC-05a",
+        "name": "2-part SPN with port",
+        "search": "HTTP/web.lab.local@LAB.LOCAL",
+        "cache": [
+          "HTTP/web.lab.local:8443@LAB.LOCAL"
+        ],
+        "note": "Port in the 2nd component must be stripped for comparison.",
+        "result": "HTTP/web.lab.local:8443@LAB.LOCAL",
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "correct"
+      },
+      {
+        "id": "EC-05b",
+        "name": "3-part SPN with port in host component",
+        "search": "LDAP/dc.lab.local@LAB.LOCAL",
+        "cache": [
+          "LDAP/dc.lab.local:3268/lab.local@LAB.LOCAL"
+        ],
+        "note": "Port + 3-part combination \u2014 the hardest shape for the 3-part branch. Baseline IndexErrors before the port is even considered.",
+        "result": "LDAP/dc.lab.local:3268/lab.local@LAB.LOCAL",
+        "exc_type": null,
+        "exc_msg": null,
+        "outcome": "correct"
+      },
+      {
+        "id": "EC-R",
+        "name": "No-slash search term against a slash-bearing cache",
+        "search": "US-DC$@US.TECHCORP.LOCAL",
+        "cache": [
+          "cifs/fs.lab.local@LAB.LOCAL"
+        ],
+        "note": "Search-side mirror of the EC-01 assumption: the anySPN loop indexes server.split('/')[1] with no guard that the SEARCH term contains a slash.",
+        "result": null,
+        "exc_type": "IndexError",
+        "exc_msg": "list index out of range",
+        "exc_tb": [
+          "    searchSPN = '%s@%s' % (server.upper().split('/')[1].split('@')[0].split(':')[0],",
+          "                           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^",
+          "IndexError: list index out of range"
+        ],
+        "outcome": "crash"
+      }
+    ]
+  }
+}
